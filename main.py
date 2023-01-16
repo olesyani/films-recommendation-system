@@ -1,17 +1,15 @@
 import vk_api
 import re
-from imdb import imdb_req
+from imdb import imdb_req, imdb_top_250_movies
 from collections import Counter
 from deep_translator import GoogleTranslator
 
 
+TOKEN = ''
 
-# в переменных LOGIN, PASSWORD должны лежать логин и пароль от странцы в ВК
-LOGIN, PASSWORD = '', ''
-FRIENDS_N = 150
 POSTS_N = 100
 COMMUNITIES_N = 300
-KEYWORDS_N = 15
+KEYWORDS_N = 5
 
 
 def word_translate(word='сон'):
@@ -19,43 +17,19 @@ def word_translate(word='сон'):
     return translation
 
 
-def get_movie_titles(data):
-    for i in range(len(data)):
-        print(data[i]['title'], data[i]['description'])
+def clear_text(text):
+    return re.sub('[\W_]+', ' ', text.replace('ё', 'е').lower()).split()
 
 
-def auth_handler():
-    """ При двухфакторной аутентификации вызывается эта функция.
-    """
-
-    key = input("Enter authentication code: ")
-    remember_device = True
-
-    return key, remember_device
+def get_user_id(vk_session, screen_name):
+    vk = vk_session.get_api()
+    person_id = vk.users.get(user_ids=screen_name)
+    print(person_id)
+    return person_id[0]['id']
 
 
-def main():
-
-    login, password = LOGIN, PASSWORD
-
-    vk_session = vk_api.VkApi(
-        login, password,
-        # функция для обработки двухфакторной аутентификации
-        auth_handler=auth_handler
-    )
-
-    try:
-        vk_session.auth()
-    except vk_api.AuthError as error_msg:
-        print(error_msg)
-        return
-
-    tools = vk_api.VkTools(vk_session)
-
-    # friends = tools.get_all('friends.get', FRIENDS_N)
-    # friends_ids = friends['items']
-
-    wall = tools.get_all('wall.get', POSTS_N)
+def recommendation(tools, owner_id):
+    wall = tools.get_all('wall.get', POSTS_N, {'owner_id': owner_id})
     wall_items = wall['items']
 
     wall_text = ""
@@ -67,9 +41,8 @@ def main():
             continue
         wall_text += ' '
 
-    wall_text = re.sub("[*/,.@':;!?&]", "", wall_text)
-    wall_text = wall_text.replace("-", " ")
-    words = [x for x in wall_text.split(" ") if len(x) >= 2]
+    wall_text = clear_text(wall_text)
+    words = [x for x in wall_text if len(x) >= 3]
     count = list(Counter(words).most_common())
 
     movies_list = []
@@ -77,8 +50,26 @@ def main():
         w = word_translate(i[0])
         movies_list.extend(imdb_req(w))
 
-    get_movie_titles(movies_list)
+    # функция imdb_top_250_movies() пока возвращает пустой список, сейчас это в разработке
+    movies_list.extend(imdb_top_250_movies())
+
+    return movies_list
+
+
+def start(person_id):
+    if TOKEN != '':
+        vk_session = vk_api.VkApi(token=TOKEN)
+        tools = vk_api.VkTools(vk_session)
+        try:
+            person_id = int(person_id)
+        except ValueError:
+            person_id = get_user_id(vk_session, person_id)
+        titles_list = recommendation(tools, person_id)
+        return titles_list
+    else:
+        print('Token is empty')
+        return
 
 
 if __name__ == '__main__':
-    main()
+    start('')
