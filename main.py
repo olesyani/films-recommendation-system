@@ -24,8 +24,11 @@ def clear_text(text):
 def get_user_id(vk_session, screen_name):
     vk = vk_session.get_api()
     person_id = vk.users.get(user_ids=screen_name)
-    print(person_id)
-    return person_id[0]['id']
+    try:
+        return person_id[0]['id']
+    except IndexError:
+        print('There is no person with that ID')
+        return None
 
 
 def recommendation(tools, owner_id):
@@ -64,6 +67,8 @@ def start(person_id):
             person_id = int(person_id)
         except ValueError:
             person_id = get_user_id(vk_session, person_id)
+            if person_id is None:
+                return 0
         titles_list = recommendation(tools, person_id)
         return titles_list
     else:

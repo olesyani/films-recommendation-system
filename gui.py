@@ -66,16 +66,15 @@ class MyGUI:
     def __init__(self):
         self.__mainWindow = Tk()
         self.__mainWindow.title('Помощник по подбору фильмов')
-        self.__mainWindow.geometry("500x220")
+        self.__mainWindow.geometry("500x250")
         self.id_label = Label(self.__mainWindow, text='Введите свой VK ID')
         self.id_entry = Entry(bd=3)
         self.id_label.place(x=70, y=70)
         self.id_entry.place(x=220, y=70)
         self.continue_button = Button(self.__mainWindow, text='Продолжить', command=self.next)
         self.continue_button.place(x=200, y=140)
-        self.labelText = ''
-        self.helping_labels = Label(self.__mainWindow, text=self.labelText, fg="red")
-        self.helping_labels.place(x=220, y=100)
+        self.helping_label = Label(self.__mainWindow, text='', fg="red")
+        self.helping_label.place(x=220, y=100)
         self.entry_value = ''
         mainloop()
 
@@ -84,28 +83,43 @@ class MyGUI:
 
         if len(v) == 0:
             print('The entry is empty')
-            self.helping_labels['text'] = 'Поле пустое'
+            self.helping_label['text'] = 'Поле пустое'
             return
 
         if v != self.entry_value:
-            recommendations = main.start(v)
-            self.create_recommendations_page(recommendations)
+            self.helping_label['text'] = ''
             self.entry_value = v
+            global tmp
+            tmp = Toplevel(self.__mainWindow)
+            tmp.title("")
+            label = Label(tmp, text="Загружаем рекомендации..")
+            label.pack(ipady=25, ipadx=25)
+            tmp.after(100, self.recommendation_request)
+            tmp.mainloop()
         else:
             p.deiconify()
             self.__mainWindow.withdraw()
 
+    def recommendation_request(self):
+        recommendations = main.start(self.entry_value)
+        if recommendations != 0:
+            self.create_recommendations_page(recommendations)
+            tmp.destroy()
+        else:
+            self.helping_label['text'] = 'Неправильный ID'
+
     def create_recommendations_page(self, recs):
-        self.__mainWindow.withdraw()
 
         global p
         p = Toplevel(self.__mainWindow)
         p.title("Помощник по подбору фильмов")
 
-        label_frame = Label(p, text="Рекомендации", font=('Baskerville', 22))
-        label_frame.pack(fill=Y, side=TOP, ipady=5)
-        label_frame = Label(p, text="для " + self.entry_value, font=('Baskerville', 18))
-        label_frame.pack(fill=Y, side=TOP, ipady=15)
+        fr = Frame(p)
+        label_rec = Label(fr, text="Рекомендации", font=('Baskerville', 22))
+        label_rec.pack(fill=Y, side=TOP)
+        label_user = Label(fr, text="для " + self.entry_value, font=('Baskerville', 18))
+        label_user.pack(fill=Y, side=TOP)
+        fr.pack(fill=Y, side=TOP, ipady=5)
 
         bottom_frame = Frame(p, height=50)
         bottom_frame.pack(side=BOTTOM, ipady=5)
@@ -114,6 +128,8 @@ class MyGUI:
 
         for i in range(4):
             FilmsFrame(p, desc=recs[i]['description'], lbl=recs[i]['title'], pic=recs[i]['image'])
+
+        self.__mainWindow.withdraw()
 
     def back(self):
         self.__mainWindow.deiconify()
