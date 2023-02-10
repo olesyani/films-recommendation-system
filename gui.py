@@ -1,4 +1,3 @@
-import requests
 from io import BytesIO
 from tkinter import *
 from PIL import ImageTk, Image
@@ -7,15 +6,11 @@ import main
 
 
 class FilmsFrame:
-
-    def __init__(
-            self,
-            window,
-            desc='Здесь должно быть краткое описание фильма',
-            lbl='Название фильма',
-            pic='https://image.winudf.com/v2/image/Y29tLnR1bWVyYi5tYXRyaXhsb2NrX3NjcmVlbl8wXzE1MzA5MDU1NTZfMDk2/screen-0.jpg?fakeurl=1&type=.webp'
-    ):
+    def __init__(self, window, fid, uid, desc, lbl, pic):
         self.poster_img = self.pic_modification(pic)
+
+        self.uid = uid
+        self.fid = fid
 
         self.film_frame = Frame(window, width=220, height=400)
 
@@ -39,30 +34,27 @@ class FilmsFrame:
         self.film_frame.pack(fill=BOTH, side=LEFT, expand=True, ipady=15, ipadx=20)
 
     def like_film(self):
-        # когда будет добавлена бд, будет отмечаться, что фильм понравился
-        # так же решаю проблему с тем, чтобы фильм обновлялся
+        main.rate(self.fid, self.uid, True)
         return
 
     def do_not_like_film(self):
-        # когда будет добавлена бд, будет отмечаться, что фильм не понравился
-        # так же решаю проблему с тем, чтобы фильм обновлялся
+        main.rate(self.fid, self.uid, False)
         return
 
-    def rename(self, desc, lbl, pic):
+    def rename(self, fid, title, desc, pic):
         self.poster_img = self.pic_modification(pic)
-        self.film_title['text'] = lbl
+        self.fid = fid
+        self.film_title['text'] = title
         self.description['text'] = desc
         self.film_img['image'] = self.poster_img
 
-    def pic_modification(self, link):
-        response = requests.get(link)
-        img = Image.open(BytesIO(response.content))
+    def pic_modification(self, img):
+        img = Image.open(BytesIO(img))
         img_resized = img.resize((180, 260), Image.Resampling.LANCZOS)
         return ImageTk.PhotoImage(img_resized)
 
 
 class MyGUI:
-
     def __init__(self):
         self.__mainWindow = Tk()
         self.__mainWindow.title('Помощник по подбору фильмов')
@@ -75,6 +67,7 @@ class MyGUI:
         self.continue_button.place(x=200, y=140)
         self.helping_label = Label(self.__mainWindow, text='', fg="red")
         self.helping_label.place(x=220, y=100)
+        self.uid = 0
         self.entry_value = ''
         mainloop()
 
@@ -101,15 +94,16 @@ class MyGUI:
             self.__mainWindow.withdraw()
 
     def recommendation_request(self):
-        recommendations = main.start(self.entry_value)
+        uid, recommendations = main.start(self.entry_value)
+        self.uid = uid
         if recommendations != 0:
             self.create_recommendations_page(recommendations)
             tmp.destroy()
         else:
             self.helping_label['text'] = 'Неправильный ID'
+            tmp.destroy()
 
     def create_recommendations_page(self, recs):
-
         global p
         p = Toplevel(self.__mainWindow)
         p.title("Помощник по подбору фильмов")
@@ -127,7 +121,13 @@ class MyGUI:
         back_button.pack()
 
         for i in range(4):
-            FilmsFrame(p, desc=recs[i]['description'], lbl=recs[i]['title'], pic=recs[i]['image'])
+            FilmsFrame(p,
+                       fid=recs[i]['id'],
+                       uid=self.uid,
+                       desc=recs[i]['description'],
+                       lbl=recs[i]['title'],
+                       pic=recs[i]['image']
+                       )
 
         self.__mainWindow.withdraw()
 
@@ -136,4 +136,7 @@ class MyGUI:
         p.withdraw()
 
 
-myGUI = MyGUI()
+if __name__ == '__main__':
+    main.connect()
+    myGUI = MyGUI()
+    main.close()
