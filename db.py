@@ -6,9 +6,10 @@ import base64
 PASSWORD = ''
 
 
-def convert_image(link):
-    response = requests.get(link)
-    return base64.b64encode(response.content)
+async def convert_image(link):
+    async with requests.get(link) as response:
+        content = await response.content
+        return base64.b64encode(content)
 
 
 def decode_image(encoded_image):
@@ -42,7 +43,7 @@ def check_if_user_exists(cur, user_id):
 
 def find_undefined_user_recommendations(cur, user_id):
     print('Finding recommendations..')
-    search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NULL"""
+    search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NULL LIMIT 4"""
     result = None
     try:
         result = []
@@ -54,6 +55,19 @@ def find_undefined_user_recommendations(cur, user_id):
             r['film'] = info[2]
             result.append(r)
             info = cur.fetchone()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    return result
+
+
+def find_next_undefined_movie(cur, user_id):
+    print('Finding recommendations..')
+    search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NULL LIMIT 1 OFFSET 3"""
+    result = None
+    try:
+        cur.execute(search, (user_id,))
+        info = cur.fetchone()
+        result = info[2]
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     return result
@@ -113,7 +127,7 @@ def insert_recommendation(conn, cur, film_id, user_id):
     return lid
 
 
-def insert_film_info(conn, cur, film_id, film_title, film_desc, film_image, film_genres, film_stars):
+async def insert_film_info(conn, cur, film_id, film_title, film_desc, film_image, film_genres, film_stars):
     maxchar = 312
     print('Inserting film information..')
     insertion = """INSERT INTO filmsInfo(film_id, title, description, image, genres, stars)

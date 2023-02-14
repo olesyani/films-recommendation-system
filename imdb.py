@@ -32,7 +32,7 @@ def imdb_req(keywords='love'):
     if KEY == '':
         print('IMDB API key is empty')
         return
-    response = requests.get("https://imdb-api.com/API/AdvancedSearch/" + KEY + "?keywords=" + keywords + "&count=25")
+    response = requests.get("https://imdb-api.com/API/AdvancedSearch/" + KEY + "?keywords=" + keywords + "&count=30")
     if response.status_code != 200:
         print('Unsuccessful IMDB request')
         return

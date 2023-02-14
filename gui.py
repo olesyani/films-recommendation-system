@@ -35,10 +35,20 @@ class FilmsFrame:
 
     def like_film(self):
         main.rate(self.fid, self.uid, True)
+        mv = main.next_movie(self.uid)
+        if mv is not None:
+            self.rename(mv['id'], mv['title'], mv['description'], mv['image'])
+        else:
+            self.film_frame.destroy()
         return
 
     def do_not_like_film(self):
         main.rate(self.fid, self.uid, False)
+        mv = main.next_movie(self.uid)
+        if mv is not None:
+            self.rename(mv['id'], mv['title'], mv['description'], mv['image'])
+        else:
+            self.film_frame.destroy()
         return
 
     def rename(self, fid, title, desc, pic):

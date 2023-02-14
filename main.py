@@ -29,6 +29,13 @@ def rate(film_id, uid, rate:True or False):
     db.rate_film(conn, cur, uid, film_id, rate)
 
 
+def next_movie(uid):
+    mv = db.find_next_undefined_movie(cur, uid)
+    if mv is not None:
+        return db.find_info(cur, mv)
+    return None
+
+
 def get_user_id(vk_session, screen_name):
     vk = vk_session.get_api()
     person_id = vk.users.get(user_ids=screen_name)
@@ -80,9 +87,6 @@ def recommendations_from_vk(tools, owner_id):
             user_id=owner_id
         )
 
-    print(movies_list)
-    return movies_list
-
 
 def add_250_top_movies_to_db():
     tmp = imdb_top_250_movies()
@@ -111,13 +115,12 @@ def start(person_id):
             if person_id is None:
                 return 0
         if db.check_if_user_exists(cur, person_id) is None:
-            return person_id, recommendations_from_vk(tools, person_id)
-        else:
-            films = []
-            recs = db.find_undefined_user_recommendations(cur, person_id)
-            for i in range(len(recs)):
-                films.append(db.find_info(cur, recs[i]['film']))
-            return person_id, films
+            recommendations_from_vk(tools, person_id)
+        films = []
+        recs = db.find_undefined_user_recommendations(cur, person_id)
+        for i in range(len(recs)):
+            films.append(db.find_info(cur, recs[i]['film']))
+        return person_id, films
     else:
         print('Token is empty')
         return
@@ -146,6 +149,6 @@ def close():
 
 if __name__ == '__main__':
     connect()
-    add_250_top_movies_to_db()
+    # add_250_top_movies_to_db()
     # start('olesyanikolaevaa')
     close()
