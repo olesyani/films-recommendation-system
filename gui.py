@@ -3,11 +3,15 @@ from tkinter import *
 from PIL import ImageTk, Image
 
 import main
+import db
+
+DATABASE = ''
+PASSWORD = ''
 
 
 class FilmsFrame:
     def __init__(self, window, fid, uid, desc, lbl, pic):
-        self.poster_img = self.pic_modification(pic)
+        self.poster_img = pic_modification(pic)
 
         self.uid = uid
         self.fid = fid
@@ -34,8 +38,8 @@ class FilmsFrame:
         self.film_frame.pack(fill=BOTH, side=LEFT, expand=True, ipady=15, ipadx=20)
 
     def like_film(self):
-        main.rate(self.fid, self.uid, True)
-        mv = main.next_movie(self.uid)
+        frsdb.rate_film(film_id=self.fid, user_id=self.uid, rate=True)
+        mv = frsdb.get_next_movie(self.uid)
         if mv is not None:
             self.rename(mv['id'], mv['title'], mv['description'], mv['image'])
         else:
@@ -43,8 +47,8 @@ class FilmsFrame:
         return
 
     def do_not_like_film(self):
-        main.rate(self.fid, self.uid, False)
-        mv = main.next_movie(self.uid)
+        frsdb.rate_film(film_id=self.fid, user_id=self.uid, rate=False)
+        mv = frsdb.get_next_movie(self.uid)
         if mv is not None:
             self.rename(mv['id'], mv['title'], mv['description'], mv['image'])
         else:
@@ -52,16 +56,11 @@ class FilmsFrame:
         return
 
     def rename(self, fid, title, desc, pic):
-        self.poster_img = self.pic_modification(pic)
+        self.poster_img = pic_modification(pic)
         self.fid = fid
         self.film_title['text'] = title
         self.description['text'] = desc
         self.film_img['image'] = self.poster_img
-
-    def pic_modification(self, img):
-        img = Image.open(BytesIO(img))
-        img_resized = img.resize((180, 260), Image.Resampling.LANCZOS)
-        return ImageTk.PhotoImage(img_resized)
 
 
 class MyGUI:
@@ -104,10 +103,13 @@ class MyGUI:
             self.__mainWindow.withdraw()
 
     def recommendation_request(self):
-        uid, recommendations = main.start(self.entry_value)
+        uid, recommendations = main.start(frsdb, self.entry_value)
         self.uid = uid
-        if recommendations != 0:
+        if recommendations:
             self.create_recommendations_page(recommendations)
+            tmp.destroy()
+        elif recommendations is None:
+            self.helping_label['text'] = 'Рекомендации не сгенерированы'
             tmp.destroy()
         else:
             self.helping_label['text'] = 'Неправильный ID'
@@ -130,7 +132,7 @@ class MyGUI:
         back_button = Button(bottom_frame, text='Назад', command=self.back)
         back_button.pack()
 
-        for i in range(4):
+        for i in range(len(recs)):
             FilmsFrame(p,
                        fid=recs[i]['id'],
                        uid=self.uid,
@@ -146,7 +148,13 @@ class MyGUI:
         p.withdraw()
 
 
+def pic_modification(img):
+    img = Image.open(BytesIO(img))
+    img_resized = img.resize((180, 260))
+    return ImageTk.PhotoImage(img_resized)
+
+
 if __name__ == '__main__':
-    main.connect()
+    frsdb = db.FRSDatabase(DATABASE, PASSWORD)
     myGUI = MyGUI()
-    main.close()
+    frsdb.close()
