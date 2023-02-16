@@ -1,7 +1,9 @@
 import vk_api
 import re
 import db
-from imdb import imdb_req, imdb_top_250_movies
+import imdb
+import random
+from imdb import imdb_req
 from collections import Counter
 from deep_translator import GoogleTranslator
 
@@ -39,12 +41,21 @@ def recommendations_from_vk(tools, owner_id):
     print('VK recommendations in progress..')
     wall = tools.get_all('wall.get', POSTS_N, {'owner_id': owner_id})
     wall_items = wall['items']
+    groups = tools.get_all('groups.get', POSTS_N, {'user_id': owner_id, 'extended': 1, 'fields': "name"})
+    groups_items = groups['items']
 
     wall_text = ""
     for i in range(wall['count']):
         wall_text += wall_items[i]['text']
         try:
             wall_text += wall_items[i]['copy_history'][0]['text']
+        except KeyError:
+            continue
+        wall_text += ' '
+
+    for i in range(groups['count']):
+        try:
+            wall_text += groups_items[i]['name']
         except KeyError:
             continue
         wall_text += ' '
@@ -59,12 +70,13 @@ def recommendations_from_vk(tools, owner_id):
         movies_list.extend(imdb_req(w))
 
     movies_list = [dict(t) for t in {tuple(d.items()) for d in movies_list}]
+    random.shuffle(movies_list)
 
     return movies_list
 
 
-def add_250_top_movies_to_db(frsdb: db.FRSDatabase):
-    tmp = imdb_top_250_movies()
+def add_1000_top_movies_to_db(frsdb: db.FRSDatabase):
+    tmp = imdb.imdb_top_1000_movies()
     for i in range(len(tmp)):
         if frsdb.find_info(tmp[i]['id']) == {}:
             frsdb.insert_film_info(
@@ -73,12 +85,15 @@ def add_250_top_movies_to_db(frsdb: db.FRSDatabase):
                 film_image=tmp[i]['image'],
                 film_title=tmp[i]['title'],
                 film_genres=tmp[i]['genre'],
-                film_stars=tmp[i]['stars']
+                film_stars=tmp[i]['stars'],
+                film_rating=tmp[i]['rating']
             )
+    frsdb.commit()
 
 
 def start(frsdb: db.FRSDatabase, person_id):
     if TOKEN != '':
+
         vk_session = vk_api.VkApi(token=TOKEN)
         tools = vk_api.VkTools(vk_session)
         try:
@@ -87,27 +102,40 @@ def start(frsdb: db.FRSDatabase, person_id):
             person_id = get_user_id(vk_session, person_id)
             if person_id is None:
                 return 0, 0
+
         if frsdb.check_if_user_exists(person_id) is None:
             movies = recommendations_from_vk(tools, person_id)
+            print('Information collected.')
             for i in range(len(movies)):
-                if frsdb.find_info(movies[i]['id']) == {}:
-                    frsdb.insert_film_info(
-                        film_id=movies[i]['id'],
-                        film_desc=movies[i]['description'],
-                        film_image=movies[i]['image'],
-                        film_title=movies[i]['title'],
-                        film_genres=movies[i]['genre'],
-                        film_stars=movies[i]['stars']
-                    )
-                frsdb.insert_recommendation(film_id=movies[i]['id'], user_id=person_id)
+                print('Inserting data into database..')
+                try:
+                    if float(movies[i]['rating']) > 5.5:
+                        if frsdb.find_info(movies[i]['id']) == {}:
+                            frsdb.insert_film_info(
+                                film_id=movies[i]['id'],
+                                film_desc=movies[i]['description'],
+                                film_image=movies[i]['image'],
+                                film_title=movies[i]['title'],
+                                film_genres=movies[i]['genre'],
+                                film_stars=movies[i]['stars'],
+                                film_rating=movies[i]['rating']
+                            )
+                        frsdb.insert_recommendation(film_id=movies[i]['id'], user_id=person_id)
+                except TypeError:
+                    pass
+            frsdb.commit()
+            print('Data inserted.')
+
         films = []
         recs = frsdb.get_undefined_user_recommendations(person_id)
+
         if recs:
             for i in range(len(recs)):
                 films.append(frsdb.find_info(recs[i]['film']))
             return person_id, films
         else:
             return None, None
+
     else:
         print('Token is empty')
         return
@@ -115,5 +143,6 @@ def start(frsdb: db.FRSDatabase, person_id):
 
 if __name__ == '__main__':
     FRSDB = db.FRSDatabase(DATABASE, PASSWORD)
-    start(FRSDB, 'olesyanikolaevaa')
+    start(FRSDB, '')
+    # add_1000_top_movies_to_db(FRSDB)
     FRSDB.close()

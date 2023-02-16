@@ -37,8 +37,8 @@ class FRSDatabase:
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
         return result
 
     def rate_film(self, user_id, film_id, rate: True or False):
@@ -49,8 +49,8 @@ class FRSDatabase:
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
 
     def get_undefined_user_recommendations(self, user_id):
         search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NULL LIMIT 4"""
@@ -67,8 +67,8 @@ class FRSDatabase:
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
         return result
 
     def get_next_movie(self, user_id):
@@ -81,8 +81,8 @@ class FRSDatabase:
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
         return result
 
     def get_all_recommendations(self, user_id):
@@ -101,8 +101,8 @@ class FRSDatabase:
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
         return result
 
     def find_info(self, film_id):
@@ -117,11 +117,12 @@ class FRSDatabase:
             result['image'] = decode_image(info[4])
             result['genres'] = info[5]
             result['stars'] = info[6]
+            result['rating'] = info[7]
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
         return result
 
     def insert_recommendation(self, film_id, user_id):
@@ -130,34 +131,36 @@ class FRSDatabase:
         try:
             self.cur.execute(insertion, (film_id, user_id))
             lid = self.cur.fetchone()[0]
-            self.conn.commit()
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
         return lid
 
-    def insert_film_info(self, film_id, film_title, film_desc, film_image, film_genres, film_stars):
-        insertion = """INSERT INTO filmsInfo(film_id, title, description, image, genres, stars)
-                     VALUES(%s, %s, %s, %s, %s, %s) RETURNING film_id;"""
+    def insert_film_info(self, film_id, film_title, film_desc, film_image, film_genres, film_stars, film_rating):
         fid = None
         try:
+            sql = """INSERT INTO filmsInfo(film_id, title, description, image, genres, stars, imdb_rating)
+                                 VALUES(%s, %s, %s, %s, %s, %s, %s) RETURNING film_id;"""
             film_image = convert_image(film_image)
-            self.cur.execute(insertion, (film_id, film_title, film_desc, film_image, film_genres, film_stars))
+            insertion = self.cur.mogrify(sql, (film_id, film_title, film_desc, film_image, film_genres, film_stars, film_rating))
+            self.cur.execute(insertion)
             fid = self.cur.fetchone()[0]
-            self.conn.commit()
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
-        except Exception as error:
-            print(error)
+        except TypeError:
+            pass
         return fid
+
+    def commit(self):
+        self.conn.commit()
 
     def close(self):
         self.cur.close()
         self.conn.close()
-        print('Database connection closed')
+        print('Database connection closed.')
 
 
 def convert_image(link):
@@ -179,7 +182,8 @@ def create_tables(connection, cursor):
             description VARCHAR,
             image BYTEA,
             genres VARCHAR,
-            stars VARCHAR
+            stars VARCHAR,
+            imdb_rating FLOAT
         )
         """,
         """ CREATE TABLE recommend (
