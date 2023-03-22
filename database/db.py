@@ -94,6 +94,28 @@ class FRSDatabase:
         except TypeError:
             pass
 
+    def add_film_recommendations_list(self, user_id, recs):
+        upd = """UPDATE users SET recommendations = %s WHERE vk_id = %s;"""
+        try:
+            self.cur.execute(upd, (str(recs), user_id))
+            self.conn.commit()
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+
+    def get_film_recommendations_list(self, user_id):
+        search = """SELECT recommendations FROM users WHERE vk_id = %s;"""
+        try:
+            self.cur.execute(search, (user_id,))
+            return self.cur.fetchone()
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+
     def get_undefined_user_recommendations(self, user_id):
         search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NULL AND saved IS NULL LIMIT 5"""
         result = []
@@ -113,18 +135,34 @@ class FRSDatabase:
             pass
         return result
 
+    def get_number_of_loaded_recs(self, user_id):
+        search = """SELECT COUNT(*) FROM recommend WHERE user_id = %s AND liked IS NULL"""
+        try:
+            self.cur.execute(search, (user_id,))
+            return self.cur.fetchone()
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+        return None
+
     def get_defined_user_recommendations(self, user_id):
         search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NOT NULL LIMIT 25"""
         result = []
         try:
             self.cur.execute(search, (user_id,))
             info = self.cur.fetchone()
-            while info is not None:
-                r = {}
-                r['film'] = self.get_title(info['film_id'])
-                r['rating'] = info['liked']
-                result.append(r)
+            while info:
+                result.append(info)
                 info = self.cur.fetchone()
+            final = []
+            for i in range(len(result)):
+                r = {}
+                r['film'] = self.get_title(result[i][2])
+                r['rating'] = result[i][3]
+                final.append(r)
+            return final
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
@@ -138,11 +176,15 @@ class FRSDatabase:
         try:
             self.cur.execute(search, (user_id,))
             info = self.cur.fetchone()
-            while info is not None:
-                r = {}
-                r['film'] = self.get_title(info['film_id'])
-                result.append(r)
+            while info:
+                result.append(info)
                 info = self.cur.fetchone()
+            final = []
+            for i in range(len(result)):
+                r = {}
+                r['film'] = self.get_title(result[i][2])
+                final.append(r)
+            return final
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
@@ -250,7 +292,6 @@ class FRSDatabase:
         try:
             sql = """INSERT INTO filmsInfo(film_id, title, description, image_link, genres, stars, imdb_rating)
                                  VALUES(%s, %s, %s, %s, %s, %s, %s) RETURNING film_id;"""
-            # film_image = convert_image(film_image)
             insertion = self.cur.mogrify(sql, (film_id,
                                                film_title,
                                                film_desc,
@@ -293,7 +334,6 @@ def create_tables(connection, cursor):
             film_id VARCHAR(16) UNIQUE,
             title VARCHAR NOT NULL,
             description VARCHAR,
-            image BYTEA,
             genres VARCHAR,
             stars VARCHAR,
             imdb_rating FLOAT,
@@ -306,6 +346,15 @@ def create_tables(connection, cursor):
                 film_id VARCHAR(16) NOT NULL,
                 liked BOOLEAN,
                 UNIQUE (user_id, film_id)
+            )
+        """,
+        """ CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                username VARCHAR NOT NULL UNIQUE,
+                password VARCHAR NOT NULL,
+                vk_id INTEGER NOT NULL UNIQUE,
+                liked BOOLEAN,
+                saved BOOLEAN
             )
         """,
         """ ALTER TABLE filmsInfo 

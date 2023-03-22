@@ -207,7 +207,17 @@ span.input-group-addon i {
     font-weight: bold;
 }
 
+table {
+    width: 100%
+}
+
 td {
+    padding-right: 6px;
+}
+
+td:not(:first-child) {
+    padding-top: 6px;
+    padding-bottom: 6px;
     padding-right: 6px;
 }
 

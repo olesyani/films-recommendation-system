@@ -126,15 +126,17 @@ def recommendations_from_vk(tools, owner_id):
     s = time.time() - s
     print(s)
 
-    wall_text = lemmatize(wall_text)
+    wall_text = lemmatize(wall_text)[:15000]
 
     translated = ''
 
     while wall_text:
-        translated += word_translate(wall_text[:4900])
+        translated += word_translate(wall_text[:3000])
         print('--- batch translated ---')
-        wall_text = wall_text[4900:]
-        time.sleep(3)
+        wall_text = wall_text[3000:]
+        time.sleep(1)
+
+    translated = clear_text(translated)
 
     words = [x for x in translated if len(x) >= 3]
 
@@ -165,8 +167,6 @@ def recommendations_from_vk(tools, owner_id):
     print('CHECKPOINT GOT MOVIES LIST')
     s = time.time() - s
     print(s)
-
-    print(movies_list)
 
     return movies_list
 
@@ -202,6 +202,29 @@ def check_vk_id(person_id):
         return person_id, screen_name
 
 
+def insert_data(frsdb: db.FRSDatabase, movies, person_id):
+    for i in range(len(movies)):
+        print('Inserting data into database..')
+        try:
+            if float(movies[i]['rating']) > 5.5:
+                if frsdb.find_info(movies[i]['id']) == {}:
+                    if movies[i]['description']:
+                        movies[i]['description'] = translate_to_rus(movies[i]['description'][:5000])
+                    frsdb.insert_film_info(
+                        film_id=movies[i]['id'],
+                        film_desc=movies[i]['description'],
+                        film_image=movies[i]['image'],
+                        film_title=movies[i]['title'],
+                        film_genres=movies[i]['genre'],
+                        film_stars=movies[i]['stars'],
+                        film_rating=movies[i]['rating']
+                    )
+                frsdb.insert_recommendation(film_id=movies[i]['id'], user_id=person_id)
+        except TypeError:
+            pass
+    frsdb.commit()
+
+
 def start_from_main(frsdb: db.FRSDatabase, person_id):
     vk_session = vk_api.VkApi(token=TOKEN)
 
@@ -219,26 +242,10 @@ def start(frsdb: db.FRSDatabase, person_id):
             movies = recommendations_from_vk(tools, person_id)
             s = time.time()
             print('Information collected.')
-            for i in range(len(movies)):
-                print('Inserting data into database..')
-                try:
-                    if float(movies[i]['rating']) > 5.5:
-                        if frsdb.find_info(movies[i]['id']) == {}:
-                            if movies[i]['description']:
-                                movies[i]['description'] = translate_to_rus(movies[i]['description'][:5000])
-                            frsdb.insert_film_info(
-                                film_id=movies[i]['id'],
-                                film_desc=movies[i]['description'],
-                                film_image=movies[i]['image'],
-                                film_title=movies[i]['title'],
-                                film_genres=movies[i]['genre'],
-                                film_stars=movies[i]['stars'],
-                                film_rating=movies[i]['rating']
-                            )
-                        frsdb.insert_recommendation(film_id=movies[i]['id'], user_id=person_id)
-                except TypeError:
-                    pass
-            frsdb.commit()
+            insert_data(frsdb, movies[:30], person_id)
+            if movies[30:]:
+                frsdb.add_film_recommendations_list(person_id, movies[30:])
+                frsdb.commit()
             print('CHECKPOINT INFO COLLECTED')
             s = time.time() - s
             print(s)
@@ -246,12 +253,25 @@ def start(frsdb: db.FRSDatabase, person_id):
 
         films = []
         recs = frsdb.get_undefined_user_recommendations(person_id)
+        recs_n = frsdb.get_number_of_loaded_recs(person_id)
 
-        if recs:
+        if recs and recs_n[0] > 10:
             for i in range(len(recs)):
                 films.append(frsdb.find_info(recs[i]['film']))
             return films
         else:
+            films = frsdb.get_film_recommendations_list(person_id)
+            if films:
+                films = list(eval(films[0]))
+                insert_data(frsdb, films[:20], person_id)
+                if films[20:]:
+                    frsdb.add_film_recommendations_list(person_id, films[20:])
+                films = []
+                recs = frsdb.get_undefined_user_recommendations(person_id)
+                if recs:
+                    for i in range(len(recs)):
+                        films.append(frsdb.find_info(recs[i]['film']))
+                    return films
             return None
 
     else:
@@ -263,7 +283,7 @@ if __name__ == '__main__':
 
     FRSDB = db.FRSDatabase(DATABASE, PASSWORD)
     print('Database connected.')
-    start_from_main(FRSDB, 'labutya')
+    start_from_main(FRSDB, 'il.bychkov')
     # for j in ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 'documentary', 'drama', 'family',
     #           'fantasy', 'film_noir', 'game_show', 'history', 'horror', 'music', 'musical', 'mystery', 'news',
     #           'reality_tv', 'romance', 'sci_fi', 'sport', 'talk_show', 'thriller', 'war', 'western']:
