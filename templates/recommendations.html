@@ -1,0 +1,29 @@
+{% extends 'layout.html' %}
+
+{% block title %}Рекомендации{% endblock %}
+
+{% block content %}
+<div class="row recommendations-page">
+    {% for rec in recs %}
+    <div class="col" align="center">
+        <div class="film-frame" align="center">
+            <div class="film-poster">
+                <img src='{{ rec["image"] }}' class="poster">
+            </div>
+            <p class="p-title">{{ rec["title"] }}</p>
+            <p class="p-description">{{ rec["description"] }}</p>
+            <p class="p-rating">Рейтинг: {{ rec["rating"] }}</p>
+            <form method="post" action="{{ url_for('recommendations') }}">
+                <input type="text" name="film-id" hidden=True value="{{ rec['id'] }}" />
+                <input class="btn film-button" type="submit" value="✔" name="like" />
+                <input class="btn film-button" type="submit" value="✘" name="dislike" />
+            </form>
+        </div>
+        <form method="post" action="{{ url_for('recommendations') }}">
+            <input type="text" name="add-film-id" hidden=True value="{{ rec['id'] }}" />
+            <input class="btn add-button" type="submit" value="ДОБАВИТЬ" name="add-film" />
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

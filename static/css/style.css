@@ -1,0 +1,313 @@
+@font-face {
+    font-family: Prosto_One;
+    src: url(../fonts/Prosto_One/ProstoOne-Regular.ttf);
+}
+
+body {
+    background-image: url('../content/homebg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-color: #eee !important;
+    margin: 0;
+}
+
+.navbar-brand {
+    font-family: Prosto_One;
+}
+
+.nav-rec {
+    color: rgba(0,0,0,.5) !important;
+    font-size: 16px;
+    font-family: Prosto_One !important;
+}
+
+.login-box {
+    height: 50%;
+    width: 30%;
+    margin-left: 35%;
+    margin-top: 10%;
+    position: relative;
+    box-shadow: 2px 2px 10px 0px rgba(0, 0, 0, .1);
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.signin {
+    margin-top: 5% !important;
+}
+
+.login-header {
+    text-align: center;
+    border-radius: 8px 8px 0px 0px;
+    font-family: Prosto_One;
+    font-size: 28px;
+    background-color: rgba(0, 0, 0, .5);
+    color: #fff;
+    position: relative;
+    padding: 16px;
+}
+
+.generate-title {
+    font-family: Prosto_One;
+    font-size: 44px;
+    margin-top: 25%;
+    margin-bottom: 16px;
+}
+
+.generate-button {
+    background-color: #7A9CC6;
+    font-family: Prosto_One;
+    padding: 0.9rem 1rem !important;
+    border-radius: 1.25rem !important;
+}
+
+.login-body {
+    padding: 32px;
+    line-height: 2;
+}
+
+.login-body p {
+    margin-bottom: 0px !important;
+}
+
+.msg {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    padding: .75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: .25rem;
+}
+
+.main {
+    margin-top: 50px;
+}
+
+h1.title {
+    font-size: 50px;
+    font-family: 'Passion One', cursive;
+    font-weight: 400;
+}
+
+hr {
+    width: 10%;
+    color: #fff;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    margin-bottom: 15px;
+}
+
+input,
+input::-webkit-input-placeholder {
+    font-size: 14px;
+    padding-top: 3px;
+}
+
+.main-login {
+    /* shadows and rounded borders */
+    -moz-border-radius: 2px;
+    -webkit-border-radius: 2px;
+    border-radius: 2px;
+    -moz-box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
+    -webkit-box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
+    box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
+
+}
+
+.form-control {
+    font-size: 14px !important;
+    height: auto !important;
+    padding: 12px 12px !important;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.check-control {
+    font-size: 14px !important;
+    font-weight: normal !important;
+    padding-left: 4px;
+}
+
+.btn-success {
+    color: #fff;
+    background-color: rgba(0, 0, 0, .35) !important;
+    border-color: rgba(0, 0, 0, .35) !important;
+}
+
+.input-group {
+    -webkit-box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.21) !important;
+    -moz-box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.21) !important;
+    box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.21) !important;
+}
+
+.main-center {
+    margin-top: 30px;
+    margin: 0 auto;
+    max-width: 400px;
+    padding: 10px 40px;
+    background: #5b6d7c;
+    text-shadow: none;
+    -webkit-box-shadow: 0px 3px 5px 0px rgba(0, 0, 0, 0.31);
+    -moz-box-shadow: 0px 3px 5px 0px rgba(0, 0, 0, 0.31);
+    box-shadow: 0px 3px 5px 0px rgba(0, 0, 0, 0.31);
+
+}
+
+span.input-group-addon i {
+    color: #fff;
+    font-size: 17px;
+    padding: 10px;
+}
+
+.login-button {
+    margin-top: 5px;
+}
+
+.login-register {
+    font-size: 11px;
+    text-align: center;
+}
+
+.site-header {
+    background-color: rgba(0, 0, 0, .85);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+}
+
+.site-header a {
+    color: #fff;
+}
+
+.profile-col {
+    margin-right: 32px;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+}
+
+.profile-info {
+    padding: 16px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 2px 2px 10px 0px rgba(0, 0, 0, 0.15);
+    margin-bottom: 32px;
+}
+
+.info {
+    font-size: 14px;
+}
+
+.profile-title {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+td {
+    padding-right: 6px;
+}
+
+.profile-button {
+    font-size: 12px !important;
+}
+
+.like-btn {
+    background-color: #61C9A8;
+}
+
+.dislike-btn {
+    background-color: #ED9B40;
+}
+
+.profile-rating {
+    background-color: #FCED62;
+    border: 1px solid transparent;
+    padding: .375rem .75rem;
+    line-height: 1.5;
+    border-radius: .25rem;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: .25rem;
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    margin-bottom: 0px !important;
+}
+
+.overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    /* bring your own prefixes */
+    transform: translate(-50%, -50%);
+
+}
+
+#top {
+    border: 5px solid #ccc;
+}
+
+#close {
+    position: fixed;
+    top: 102%;
+    left: 50%;
+    transform: translate(-102%, -50%);
+}
+
+.film-frame {
+    background-color: #f8f9fa;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    box-shadow: 0px 0.2px rgba(0, 0, 0, 0.31);
+}
+
+.p-title {
+    margin: 16px 0px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.p-description {
+    font-size: 12px;
+}
+
+.p-rating {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.film-poster {
+    height: 250px;
+    width: 185px;
+}
+
+.poster {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.film-button {
+    background-color: #eee;
+    padding: .375rem .8rem !important;
+    border-radius: .25rem !important;
+}
+
+.add-button {
+    font-size: 10px !important;
+    font-family: Prosto_One;
+}
+
+.recommendations-page {
+    background-color: #eee;
+}
+
+.profile-container {
+    margin-left: 0px !important;
+}

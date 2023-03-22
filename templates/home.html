@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+
+{% block title %}Виртуальный помощник{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-6 home-info">
+            <h1 class="generate-title">Сгенерировать фильмы</h1>
+            <form method="post" action="/">
+                <input class="btn generate-button" type="submit" value="РЕКОМЕНДОВАТЬ" name="generate" />
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

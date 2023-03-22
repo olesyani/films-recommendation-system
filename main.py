@@ -1,11 +1,20 @@
 import vk_api
 import re
-import db
-import imdb
 import random
-from imdb import imdb_req
+import time
+import database.db as db
+import api.imdb as imdb
 from collections import Counter
 from deep_translator import GoogleTranslator
+from pymorphy2 import MorphAnalyzer
+from nltk.corpus import wordnet as wn
+
+
+WN_NOUN = 'n'
+WN_VERB = 'v'
+WN_ADJECTIVE = 'a'
+WN_ADJECTIVE_SATELLITE = 's'
+WN_ADVERB = 'r'
 
 
 TOKEN = ''
@@ -15,11 +24,16 @@ PASSWORD = ''
 
 POSTS_N = 100
 COMMUNITIES_N = 300
-KEYWORDS_N = 5
+KEYWORDS_N = 10
 
 
-def word_translate(word='сон'):
+def word_translate(word):
     translation = GoogleTranslator(source='auto', target='en').translate(word)
+    return translation
+
+
+def translate_to_rus(text):
+    translation = GoogleTranslator(source='auto', target='ru').translate(text)
     return translation
 
 
@@ -27,17 +41,65 @@ def clear_text(text):
     return re.sub(r'[^а-яА-Яa-zA-Z ]+', ' ', text.replace('ё', 'е').lower()).split()
 
 
+def convert(word):
+    to_pos = 'n'
+    norm_words = []
+    for from_pos in ['v', 'a', 's', 'r']:
+        synsets = wn.synsets(word, pos=from_pos)
+
+        if not synsets:
+            continue
+
+        lemmas = []
+        for s in synsets:
+            for l in s.lemmas():
+                if s.name().split('.')[1] == from_pos or from_pos in (WN_ADJECTIVE, WN_ADJECTIVE_SATELLITE) \
+                        and s.name().split('.')[1] in (WN_ADJECTIVE, WN_ADJECTIVE_SATELLITE):
+                    lemmas += [l]
+
+        derivationally_related_forms = [(l, l.derivationally_related_forms()) for l in lemmas]
+
+        related_noun_lemmas = []
+
+        for drf in derivationally_related_forms:
+            for l in drf[1]:
+                if l.synset().name().split('.')[1] == to_pos or to_pos in (WN_ADJECTIVE, WN_ADJECTIVE_SATELLITE) \
+                        and l.synset().name().split('.')[1] in (WN_ADJECTIVE, WN_ADJECTIVE_SATELLITE):
+                    related_noun_lemmas += [l]
+
+        words = [l.name() for l in related_noun_lemmas]
+        len_words = len(words)
+
+        result = [(w, float(words.count(w)) / len_words) for w in set(words)]
+        norm_words.extend(result)
+
+    norm_words.sort(key=lambda w: -w[1])
+    norm_words = tuple([w[0] for w in norm_words])
+    return norm_words[:5]
+
+
+def lemmatize(text):
+    text = clear_text(text)
+    morph = MorphAnalyzer()
+    words_lemma = ''
+    for word in text:
+        p = morph.parse(word)[0]
+        words_lemma += p.normal_form + ' '
+    return words_lemma
+
+
 def get_user_id(vk_session, screen_name):
     vk = vk_session.get_api()
-    person_id = vk.users.get(user_ids=screen_name)
+    person_id = vk.users.get(user_ids=screen_name, fields='screen_name')
     try:
-        return person_id[0]['id']
+        return person_id[0]['id'], person_id[0]['screen_name']
     except IndexError:
         print('There is no person with that ID')
-        return None
+        return None, None
 
 
 def recommendations_from_vk(tools, owner_id):
+    s = time.time()
     print('VK recommendations in progress..')
     wall = tools.get_all('wall.get', POSTS_N, {'owner_id': owner_id})
     wall_items = wall['items']
@@ -60,25 +122,65 @@ def recommendations_from_vk(tools, owner_id):
             continue
         wall_text += ' '
 
-    wall_text = clear_text(wall_text)
-    words = [x for x in wall_text if len(x) >= 3]
-    count = list(Counter(words).most_common())
+    print('CHECKPOINT INFO COLLECTED')
+    s = time.time() - s
+    print(s)
+
+    wall_text = lemmatize(wall_text)
+
+    translated = ''
+
+    while wall_text:
+        translated += word_translate(wall_text[:4900])
+        print('--- batch translated ---')
+        wall_text = wall_text[4900:]
+        time.sleep(3)
+
+    words = [x for x in translated if len(x) >= 3]
+
+    print('CHECKPOINT TRANSLATED')
+    s = time.time() - s
+    print(s)
+
+    normalized_words = []
+
+    for w in words:
+        normalized_words.extend(convert(w))
+
+    count = list(Counter(normalized_words).most_common())
+
+    print(count)
+
+    print('CHECKPOINT WORDS NORMALIZED')
+    s = time.time() - s
+    print(s)
 
     movies_list = []
     for i in count[:KEYWORDS_N]:
-        w = word_translate(i[0])
-        movies_list.extend(imdb_req(w))
+        movies_list.extend(imdb.imdb_req(i[0]))
 
     movies_list = [dict(t) for t in {tuple(d.items()) for d in movies_list}]
     random.shuffle(movies_list)
 
+    print('CHECKPOINT GOT MOVIES LIST')
+    s = time.time() - s
+    print(s)
+
+    print(movies_list)
+
     return movies_list
 
 
-def add_1000_top_movies_to_db(frsdb: db.FRSDatabase):
-    tmp = imdb.imdb_top_1000_movies()
+def add_250_top_movies_to_db(frsdb: db.FRSDatabase, genre=None):
+    if genre:
+        tmp = imdb.imdb_top_250_by_genre(genre)
+    else:
+        tmp = imdb.imdb_top_250_movies()
     for i in range(len(tmp)):
         if frsdb.find_info(tmp[i]['id']) == {}:
+            print('Inserting..')
+            if tmp[i]['description']:
+                tmp[i]['description'] = translate_to_rus(tmp[i]['description'][:5000])
             frsdb.insert_film_info(
                 film_id=tmp[i]['id'],
                 film_desc=tmp[i]['description'],
@@ -91,26 +193,39 @@ def add_1000_top_movies_to_db(frsdb: db.FRSDatabase):
     frsdb.commit()
 
 
+def check_vk_id(person_id):
+    if TOKEN != '':
+        vk_session = vk_api.VkApi(token=TOKEN)
+        person_id, screen_name = get_user_id(vk_session, person_id)
+        if person_id is None:
+            return 0, 0
+        return person_id, screen_name
+
+
+def start_from_main(frsdb: db.FRSDatabase, person_id):
+    vk_session = vk_api.VkApi(token=TOKEN)
+
+    person_id, screen_name = get_user_id(vk_session, person_id)
+    print(person_id, screen_name)
+    start(frsdb, person_id)
+
+
 def start(frsdb: db.FRSDatabase, person_id):
     if TOKEN != '':
-
         vk_session = vk_api.VkApi(token=TOKEN)
         tools = vk_api.VkTools(vk_session)
-        try:
-            person_id = int(person_id)
-        except ValueError:
-            person_id = get_user_id(vk_session, person_id)
-            if person_id is None:
-                return 0, 0
 
         if frsdb.check_if_user_exists(person_id) is None:
             movies = recommendations_from_vk(tools, person_id)
+            s = time.time()
             print('Information collected.')
             for i in range(len(movies)):
                 print('Inserting data into database..')
                 try:
                     if float(movies[i]['rating']) > 5.5:
                         if frsdb.find_info(movies[i]['id']) == {}:
+                            if movies[i]['description']:
+                                movies[i]['description'] = translate_to_rus(movies[i]['description'][:5000])
                             frsdb.insert_film_info(
                                 film_id=movies[i]['id'],
                                 film_desc=movies[i]['description'],
@@ -124,6 +239,9 @@ def start(frsdb: db.FRSDatabase, person_id):
                 except TypeError:
                     pass
             frsdb.commit()
+            print('CHECKPOINT INFO COLLECTED')
+            s = time.time() - s
+            print(s)
             print('Data inserted.')
 
         films = []
@@ -132,9 +250,9 @@ def start(frsdb: db.FRSDatabase, person_id):
         if recs:
             for i in range(len(recs)):
                 films.append(frsdb.find_info(recs[i]['film']))
-            return person_id, films
+            return films
         else:
-            return None, None
+            return None
 
     else:
         print('Token is empty')
@@ -142,7 +260,13 @@ def start(frsdb: db.FRSDatabase, person_id):
 
 
 if __name__ == '__main__':
+
     FRSDB = db.FRSDatabase(DATABASE, PASSWORD)
-    start(FRSDB, '')
-    # add_1000_top_movies_to_db(FRSDB)
+    print('Database connected.')
+    start_from_main(FRSDB, 'labutya')
+    # for j in ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 'documentary', 'drama', 'family',
+    #           'fantasy', 'film_noir', 'game_show', 'history', 'horror', 'music', 'musical', 'mystery', 'news',
+    #           'reality_tv', 'romance', 'sci_fi', 'sport', 'talk_show', 'thriller', 'war', 'western']:
+    #     print(j)
+    #     add_250_top_movies_to_db(FRSDB, j)
     FRSDB.close()
