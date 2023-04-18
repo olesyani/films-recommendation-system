@@ -4,11 +4,16 @@ import random
 import time
 import database.db as db
 import api.imdb as imdb
+import os
 from collections import Counter
 from deep_translator import GoogleTranslator
 from pymorphy2 import MorphAnalyzer
 from nltk.corpus import wordnet as wn
+from datetime import datetime
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 WN_NOUN = 'n'
 WN_VERB = 'v'
@@ -16,10 +21,10 @@ WN_ADJECTIVE = 'a'
 WN_ADJECTIVE_SATELLITE = 's'
 WN_ADVERB = 'r'
 
+TOKEN = os.getenv("TOKEN")
 
-TOKEN = ''
-DATABASE = ''
-PASSWORD = ''
+DATABASE = os.getenv("DATABASE")
+PASSWORD = os.getenv("PASSWORD")
 
 
 POSTS_N = 100
@@ -86,6 +91,17 @@ def lemmatize(text):
         p = morph.parse(word)[0]
         words_lemma += p.normal_form + ' '
     return words_lemma
+
+
+def get_permission(frsdb: db.FRSDatabase, person_id):
+    t = frsdb.get_last_request_date(person_id)
+    if t:
+        days_between = (datetime.now() - t).days
+        if days_between > 5:
+            return True
+        else:
+            return False
+    return True
 
 
 def get_user_id(vk_session, screen_name):
@@ -225,21 +241,14 @@ def insert_data(frsdb: db.FRSDatabase, movies, person_id):
     frsdb.commit()
 
 
-def start_from_main(frsdb: db.FRSDatabase, person_id):
-    vk_session = vk_api.VkApi(token=TOKEN)
-
-    person_id, screen_name = get_user_id(vk_session, person_id)
-    print(person_id, screen_name)
-    start(frsdb, person_id)
-
-
-def start(frsdb: db.FRSDatabase, person_id):
+def start(frsdb: db.FRSDatabase, person_id, loop=False):
     if TOKEN != '':
         vk_session = vk_api.VkApi(token=TOKEN)
         tools = vk_api.VkTools(vk_session)
 
-        if frsdb.check_if_user_exists(person_id) is None:
+        if (frsdb.check_if_user_exists(person_id) is None) or (loop and get_permission(frsdb, person_id)):
             movies = recommendations_from_vk(tools, person_id)
+            frsdb.add_request_date(person_id, datetime.now())
             s = time.time()
             print('Information collected.')
             insert_data(frsdb, movies[:30], person_id)
@@ -258,7 +267,7 @@ def start(frsdb: db.FRSDatabase, person_id):
         if recs and recs_n[0] > 10:
             for i in range(len(recs)):
                 films.append(frsdb.find_info(recs[i]['film']))
-            return films
+            return films, 1
         else:
             films = frsdb.get_film_recommendations_list(person_id)
             if films:
@@ -271,19 +280,29 @@ def start(frsdb: db.FRSDatabase, person_id):
                 if recs:
                     for i in range(len(recs)):
                         films.append(frsdb.find_info(recs[i]['film']))
-                    return films
-            return None
+                    return films, 1
+            for i in range(len(recs)):
+                films.append(frsdb.find_info(recs[i]['film']))
+            return films, 0
 
     else:
         print('Token is empty')
         return
 
 
-if __name__ == '__main__':
+def start_from_main(frsdb: db.FRSDatabase, person_id, loop=False):
+    vk_session = vk_api.VkApi(token=TOKEN)
 
+    person_id, screen_name = get_user_id(vk_session, person_id)
+    print(person_id, screen_name)
+    start(frsdb, person_id, loop)
+
+
+if __name__ == '__main__':
     FRSDB = db.FRSDatabase(DATABASE, PASSWORD)
-    print('Database connected.')
-    start_from_main(FRSDB, 'il.bychkov')
+
+    start_from_main(FRSDB, 'olesyanikolaevaa')
+    # print('Database connected.')
     # for j in ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 'documentary', 'drama', 'family',
     #           'fantasy', 'film_noir', 'game_show', 'history', 'horror', 'music', 'musical', 'mystery', 'news',
     #           'reality_tv', 'romance', 'sci_fi', 'sport', 'talk_show', 'thriller', 'war', 'western']:

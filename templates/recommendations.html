@@ -3,6 +3,12 @@
 {% block title %}Рекомендации{% endblock %}
 
 {% block content %}
+<div class="message" align="center" style="display:{{ visibility }}">
+    <h2 class="message-title">Ваши рекомендации подходят к концу, происходит генерация новых рекомендация</h2>
+    <div class="spinner-border spinner-border-sm" role="status">
+      <span class="sr-only">Loading...</span>
+    </div>
+</div>
 <div class="row recommendations-page">
     {% for rec in recs %}
     <div class="col" align="center">

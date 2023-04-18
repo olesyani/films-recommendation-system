@@ -72,10 +72,10 @@ class FRSDatabase:
             pass
         return None
 
-    def rate_film(self, user_id, film_id, rate: True or False):
-        upd = """UPDATE recommend SET liked = %s WHERE film_id = %s AND user_id = %s;"""
+    def rate_film(self, user_id, film_id, rate, date):
+        upd = """UPDATE recommend SET liked = %s, rate_date = %s WHERE film_id = %s AND user_id = %s;"""
         try:
-            self.cur.execute(upd, (rate, film_id, user_id))
+            self.cur.execute(upd, (rate, date, film_id, user_id))
             self.conn.commit()
         except psycopg2.DatabaseError as error:
             print(error)
@@ -83,16 +83,39 @@ class FRSDatabase:
         except TypeError:
             pass
 
-    def add_film_to_list(self, user_id, film_id):
+    def add_film_to_list(self, user_id, film_id, saved=True):
         upd = """UPDATE recommend SET saved = %s WHERE film_id = %s AND user_id = %s;"""
         try:
-            self.cur.execute(upd, (True, film_id, user_id))
+            self.cur.execute(upd, (saved, film_id, user_id))
             self.conn.commit()
         except psycopg2.DatabaseError as error:
             print(error)
             self.reconnect()
         except TypeError:
             pass
+
+    def add_request_date(self, user_id, date):
+        upd = """UPDATE users SET last_request = %s WHERE vk_id = %s;"""
+        try:
+            self.cur.execute(upd, (date, user_id))
+            self.conn.commit()
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+
+    def get_last_request_date(self, user_id):
+        search = """SELECT last_request FROM users WHERE vk_id = %s"""
+        try:
+            self.cur.execute(search, (user_id,))
+            return self.cur.fetchone()[0]
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+        return None
 
     def add_film_recommendations_list(self, user_id, recs):
         upd = """UPDATE users SET recommendations = %s WHERE vk_id = %s;"""
@@ -148,7 +171,7 @@ class FRSDatabase:
         return None
 
     def get_defined_user_recommendations(self, user_id):
-        search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NOT NULL LIMIT 25"""
+        search = """SELECT * FROM recommend WHERE user_id = %s AND liked IS NOT NULL ORDER BY rate_date LIMIT 12"""
         result = []
         try:
             self.cur.execute(search, (user_id,))
@@ -159,6 +182,7 @@ class FRSDatabase:
             final = []
             for i in range(len(result)):
                 r = {}
+                r['id'] = result[i][2]
                 r['film'] = self.get_title(result[i][2])
                 r['rating'] = result[i][3]
                 final.append(r)
@@ -171,7 +195,7 @@ class FRSDatabase:
         return result
 
     def get_films_list(self, user_id):
-        search = """SELECT * FROM recommend WHERE user_id = %s AND saved IS NOT NULL"""
+        search = """SELECT * FROM recommend WHERE user_id = %s AND saved = True"""
         result = []
         try:
             self.cur.execute(search, (user_id,))
@@ -182,6 +206,7 @@ class FRSDatabase:
             final = []
             for i in range(len(result)):
                 r = {}
+                r['id'] = result[i][2]
                 r['film'] = self.get_title(result[i][2])
                 final.append(r)
             return final

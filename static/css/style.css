@@ -11,6 +11,10 @@ body {
     margin: 0;
 }
 
+.btn {
+    background-color: #e4e4e4 !important;
+}
+
 .navbar-brand {
     font-family: Prosto_One;
 }
@@ -55,7 +59,7 @@ body {
 }
 
 .generate-button {
-    background-color: #7A9CC6;
+    background-color: #7A9CC6 !important;
     font-family: Prosto_One;
     padding: 0.9rem 1rem !important;
     border-radius: 1.25rem !important;
@@ -211,14 +215,13 @@ table {
     width: 100%
 }
 
-td {
+.w-list td {
     padding-right: 6px;
 }
 
 td:not(:first-child) {
     padding-top: 6px;
     padding-bottom: 6px;
-    padding-right: 6px;
 }
 
 .profile-button {
@@ -226,22 +229,16 @@ td:not(:first-child) {
 }
 
 .like-btn {
-    background-color: #61C9A8;
+    background-color: #61C9A8 !important;
 }
 
 .dislike-btn {
-    background-color: #ED9B40;
+    background-color: #ED9B40 !important;
 }
 
 .profile-rating {
-    background-color: #FCED62;
-    border: 1px solid transparent;
     padding: .375rem .75rem;
-    line-height: 1.5;
-    border-radius: .25rem;
     font-size: 12px;
-    line-height: 1.5;
-    border-radius: .25rem;
     display: inline-block;
     font-weight: 400;
     text-align: center;
@@ -283,7 +280,7 @@ td:not(:first-child) {
 }
 
 .p-description {
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .p-rating {
@@ -320,4 +317,33 @@ td:not(:first-child) {
 
 .profile-container {
     margin-left: 0px !important;
+}
+
+.message {
+    background-color: #eee;
+    margin: 0px 0px 14px 0px;
+}
+
+.message-title {
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0px 12px 0px 0px;
+}
+
+.gen-rec-button {
+    border-radius: 1.25rem !important;
+}
+
+.title-button-frame {
+    display: flex;
+    justify-content: space-between;
+}
+
+.back-btn {
+    margin-right: 12px;
+    background-color: #f8f9fa !important;
+}
+
+.sp {
+    margin: 12px !important;
 }
