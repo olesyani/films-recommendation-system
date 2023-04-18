@@ -1,24 +1,15 @@
 import re
 import main
-import database.db as db
-import os
+import database.firebasedb as db
 from flask import Flask, request, session, redirect, url_for, render_template, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
-from dotenv import load_dotenv
 
-
-load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("secret_key")
+app.secret_key = ''
 
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
 
-frs = db.FRSDatabase(DB_NAME, DB_PASS)
+frs = db.FRSFirebaseDatabase("./")
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -35,31 +26,24 @@ def home():
 def recommendations():
     if 'loggedin' in session:
         account = frs.get_current_user(session['id'])
-        try:
-            recs, vis = main.start(frs, account['vk_id'])
-        except TypeError:
-            recs, vis = main.start(frs, account[3])
-        if vis:
-            visibility = 'none'
-        else:
-            visibility = 'flex'
+        recs = main.start(frs, account['vk_id'])
         if request.method == 'POST':
             if request.form.get('like') == '✔':
                 fid = request.form['film-id']
                 print(fid)
-                frs.rate_film(account['vk_id'], fid, True, datetime.now())
+                frs.rate_film(account['vk_id'], fid, True)
                 return redirect(url_for('recommendations'))
-            elif request.form.get('dislike') == '✘':
+            if request.form.get('dislike') == '✘':
                 fid = request.form['film-id']
                 print(fid)
-                frs.rate_film(account['vk_id'], fid, False, datetime.now())
+                frs.rate_film(account['vk_id'], fid, False)
                 return redirect(url_for('recommendations'))
-            elif request.form.get('add-film') == 'ДОБАВИТЬ':
+            if request.form.get('add-film') == 'ДОБАВИТЬ':
                 fid = request.form['add-film-id']
                 print(fid)
                 frs.add_film_to_list(account['vk_id'], fid)
                 return redirect(url_for('recommendations'))
-        return render_template('recommendations.html', username=session['username'], recs=recs, visibility=visibility)
+        return render_template('recommendations.html', username=session['username'], recs=recs)
     return redirect(url_for('login'))
 
 
@@ -77,7 +61,7 @@ def login():
             print(password_rs)
             if check_password_hash(password_rs, password):
                 session['loggedin'] = True
-                session['id'] = account['id']
+                session['id'] = account['vk_id']
                 session['username'] = account['username']
                 return redirect(url_for('home'))
             else:
@@ -136,55 +120,33 @@ def logout():
 def profile():
     if 'loggedin' in session:
         account = frs.get_current_user(session['id'])
-        try:
-            acc = account['vk_id']
-        except TypeError:
-            acc = account[3]
-        history = frs.get_defined_user_recommendations(acc)
-        flist = frs.get_films_list(acc)
+        history = frs.get_defined_user_recommendations(account['vk_id'])
+        flist = frs.get_films_list(account['vk_id'])
         for i in history:
-            if i['rating']:
-                i['rating'] = '✔'
+            if i['liked']:
+                i['liked'] = '✔'
             else:
-                i['rating'] = '✘'
-        visedit = 'table-cell'
-        visoptions = 'none'
+                i['liked'] = '✘'
         if request.method == 'POST':
             if request.form.get('like') == '✔':
                 fid = request.form['film-id']
                 print(fid)
-                frs.rate_film(account['vk_id'], fid, True, datetime.now())
-                frs.add_film_to_list(account['vk_id'], fid, False)
+                frs.rate_film(account['vk_id'], fid, True)
                 return redirect(url_for('profile'))
-            elif request.form.get('dislike') == '✘':
+            if request.form.get('dislike') == '✘':
                 fid = request.form['film-id']
                 print(fid)
-                frs.rate_film(account['vk_id'], fid, False, datetime.now())
-                frs.add_film_to_list(account['vk_id'], fid, False)
+                frs.rate_film(account['vk_id'], fid, False)
                 return redirect(url_for('profile'))
-            elif request.form.get('delete') == 'УДАЛИТЬ':
-                fid = request.form['film-id']
+            if request.form.get('add-film') == 'ДОБАВИТЬ':
+                fid = request.form['add-film-id']
                 print(fid)
-                frs.add_film_to_list(account['vk_id'], fid, False)
+                frs.add_film_to_list(account['vk_id'], fid)
                 return redirect(url_for('profile'))
-            if request.form.get('delete-rate') == 'УДАЛИТЬ':
-                fid = request.form['film-id']
-                print(fid)
-                frs.rate_film(account['vk_id'], fid, None, datetime.now())
-                return redirect(url_for('profile'))
-            if request.form.get('edit') == 'ИЗМЕНИТЬ':
-                visedit = 'none'
-                visoptions = 'table-cell'
-            if request.form.get('back') == 'ОТМЕНИТЬ':
-                return redirect(url_for('profile'))
-        return render_template('profile.html',
-                               account=account,
-                               history=history,
-                               flist=flist,
-                               visedit=visedit,
-                               visoptions=visoptions)
+        return render_template('profile.html', account=account, history=history, flist=flist)
     return redirect(url_for('login'))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
+    # app.run(debug=True, port=5000, host='0.0.0.0')

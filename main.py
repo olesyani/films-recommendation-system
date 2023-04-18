@@ -2,18 +2,13 @@ import vk_api
 import re
 import random
 import time
-import database.db as db
+import database.firebasedb as db
 import api.imdb as imdb
-import os
 from collections import Counter
 from deep_translator import GoogleTranslator
 from pymorphy2 import MorphAnalyzer
 from nltk.corpus import wordnet as wn
-from datetime import datetime
-from dotenv import load_dotenv
 
-
-load_dotenv()
 
 WN_NOUN = 'n'
 WN_VERB = 'v'
@@ -21,10 +16,8 @@ WN_ADJECTIVE = 'a'
 WN_ADJECTIVE_SATELLITE = 's'
 WN_ADVERB = 'r'
 
-TOKEN = os.getenv("TOKEN")
 
-DATABASE = os.getenv("DATABASE")
-PASSWORD = os.getenv("PASSWORD")
+TOKEN = ''
 
 
 POSTS_N = 100
@@ -91,17 +84,6 @@ def lemmatize(text):
         p = morph.parse(word)[0]
         words_lemma += p.normal_form + ' '
     return words_lemma
-
-
-def get_permission(frsdb: db.FRSDatabase, person_id):
-    t = frsdb.get_last_request_date(person_id)
-    if t:
-        days_between = (datetime.now() - t).days
-        if days_between > 5:
-            return True
-        else:
-            return False
-    return True
 
 
 def get_user_id(vk_session, screen_name):
@@ -187,7 +169,7 @@ def recommendations_from_vk(tools, owner_id):
     return movies_list
 
 
-def add_250_top_movies_to_db(frsdb: db.FRSDatabase, genre=None):
+def add_250_top_movies_to_db(frsdb: db.FRSFirebaseDatabase, genre=None):
     if genre:
         tmp = imdb.imdb_top_250_by_genre(genre)
     else:
@@ -206,7 +188,6 @@ def add_250_top_movies_to_db(frsdb: db.FRSDatabase, genre=None):
                 film_stars=tmp[i]['stars'],
                 film_rating=tmp[i]['rating']
             )
-    frsdb.commit()
 
 
 def check_vk_id(person_id):
@@ -218,12 +199,12 @@ def check_vk_id(person_id):
         return person_id, screen_name
 
 
-def insert_data(frsdb: db.FRSDatabase, movies, person_id):
+def insert_data(frsdb: db.FRSFirebaseDatabase, movies, person_id):
+    print('Inserting data into database..')
     for i in range(len(movies)):
-        print('Inserting data into database..')
         try:
             if float(movies[i]['rating']) > 5.5:
-                if frsdb.find_info(movies[i]['id']) == {}:
+                if frsdb.find_info(movies[i]['id']) is None:
                     if movies[i]['description']:
                         movies[i]['description'] = translate_to_rus(movies[i]['description'][:5000])
                     frsdb.insert_film_info(
@@ -236,25 +217,31 @@ def insert_data(frsdb: db.FRSDatabase, movies, person_id):
                         film_rating=movies[i]['rating']
                     )
                 frsdb.insert_recommendation(film_id=movies[i]['id'], user_id=person_id)
-        except TypeError:
+        except TypeError as error:
+            print(error)
             pass
-    frsdb.commit()
 
 
-def start(frsdb: db.FRSDatabase, person_id, loop=False):
+def start_from_main(frsdb: db.FRSFirebaseDatabase, person_id):
+    vk_session = vk_api.VkApi(token=TOKEN)
+
+    person_id, screen_name = get_user_id(vk_session, person_id)
+    print(person_id, screen_name)
+    start(frsdb, person_id)
+
+
+def start(frsdb: db.FRSFirebaseDatabase, person_id):
     if TOKEN != '':
         vk_session = vk_api.VkApi(token=TOKEN)
         tools = vk_api.VkTools(vk_session)
-
-        if (frsdb.check_if_user_exists(person_id) is None) or (loop and get_permission(frsdb, person_id)):
+        n = frsdb.get_number_of_loaded_recs(person_id)
+        if n == 0:
             movies = recommendations_from_vk(tools, person_id)
-            frsdb.add_request_date(person_id, datetime.now())
             s = time.time()
             print('Information collected.')
             insert_data(frsdb, movies[:30], person_id)
             if movies[30:]:
                 frsdb.add_film_recommendations_list(person_id, movies[30:])
-                frsdb.commit()
             print('CHECKPOINT INFO COLLECTED')
             s = time.time() - s
             print(s)
@@ -262,12 +249,11 @@ def start(frsdb: db.FRSDatabase, person_id, loop=False):
 
         films = []
         recs = frsdb.get_undefined_user_recommendations(person_id)
-        recs_n = frsdb.get_number_of_loaded_recs(person_id)
 
-        if recs and recs_n[0] > 10:
+        if recs and n > 10:
             for i in range(len(recs)):
-                films.append(frsdb.find_info(recs[i]['film']))
-            return films, 1
+                films.append(frsdb.find_info(recs[i]))
+            return films
         else:
             films = frsdb.get_film_recommendations_list(person_id)
             if films:
@@ -279,33 +265,22 @@ def start(frsdb: db.FRSDatabase, person_id, loop=False):
                 recs = frsdb.get_undefined_user_recommendations(person_id)
                 if recs:
                     for i in range(len(recs)):
-                        films.append(frsdb.find_info(recs[i]['film']))
-                    return films, 1
-            for i in range(len(recs)):
-                films.append(frsdb.find_info(recs[i]['film']))
-            return films, 0
+                        films.append(frsdb.find_info(recs[i]))
+                    return films
+            return None
 
     else:
         print('Token is empty')
         return
 
 
-def start_from_main(frsdb: db.FRSDatabase, person_id, loop=False):
-    vk_session = vk_api.VkApi(token=TOKEN)
-
-    person_id, screen_name = get_user_id(vk_session, person_id)
-    print(person_id, screen_name)
-    start(frsdb, person_id, loop)
-
-
 if __name__ == '__main__':
-    FRSDB = db.FRSDatabase(DATABASE, PASSWORD)
 
+    FRSDB = db.FRSFirebaseDatabase("./films-recommendation-system-firebase-adminsdk-fnhvn-157e8c6ada.json")
+    print('Database connected.')
     start_from_main(FRSDB, 'olesyanikolaevaa')
-    # print('Database connected.')
     # for j in ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 'documentary', 'drama', 'family',
     #           'fantasy', 'film_noir', 'game_show', 'history', 'horror', 'music', 'musical', 'mystery', 'news',
     #           'reality_tv', 'romance', 'sci_fi', 'sport', 'talk_show', 'thriller', 'war', 'western']:
     #     print(j)
     #     add_250_top_movies_to_db(FRSDB, j)
-    FRSDB.close()

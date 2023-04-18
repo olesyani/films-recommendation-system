@@ -1,11 +1,7 @@
 import requests
-import os
-from dotenv import load_dotenv
 
-
-load_dotenv()
-
-KEY = os.getenv("KEY")
+# в переменной KEY должен лежать ключ для работы с IMDB API
+KEY = ""
 
 
 def get_information_from_response(data):
@@ -68,7 +64,7 @@ def imdb_req(keywords='love'):
     if KEY == '':
         print('IMDB API key is empty')
         return
-    response = requests.get("https://imdb-api.com/API/AdvancedSearch/" + KEY + "?keywords=" + keywords + "&count=50")
+    response = requests.get("https://imdb-api.com/API/AdvancedSearch/" + KEY + "?keywords=" + keywords + "&count=30")
     if response.status_code != 200:
         print('Unsuccessful IMDB request')
         return

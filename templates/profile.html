@@ -14,23 +14,23 @@
                 <h2 class="profile-title">Буду смотреть:</h2>
                 <table>
                     {% for rec in flist %}
-                    <tr class="w-list">
-                        <td>{{ rec['film'] }}</td>
+                    <tr>
+                        <td><a href="https://www.imdb.com/title/{{ rec['film_id'] }}">{{ rec['film'] }}</a></td>
                         <td>
                             <form method="post" action="{{ url_for('profile') }}">
-                                <input type="text" name="film-id" hidden=True value="{{ rec['id'] }}" />
+                                <input type="text" name="film-id" hidden=True value="{{ rec['film_id'] }}" />
                                 <input class="btn profile-button like-btn" type="submit" value="✔" name="like" />
                             </form>
                         </td>
                         <td>
                             <form method="post" action="{{ url_for('profile') }}">
-                                <input type="text" name="film-id" hidden=True value="{{ rec['id'] }}" />
+                                <input type="text" name="film-id" hidden=True value="{{ rec['film_id'] }}" />
                                 <input class="btn profile-button dislike-btn" type="submit" value="✘" name="dislike" />
                             </form>
                         </td>
                         <td>
                             <form method="post" action="{{ url_for('profile') }}">
-                                <input type="text" name="film-id" hidden=True value="{{ rec['id'] }}" />
+                                <input type="text" name="film-id" hidden=True value="{{ rec['film_id'] }}" />
                                 <input class="btn profile-button" type="submit" value="УДАЛИТЬ" name="delete" />
                             </form>
                         </td>
@@ -41,38 +41,18 @@
         </div>
         <div class="col-6 profile-col">
             <div class="profile-info">
-                <div class="title-button-frame">
-                    <h2 class="profile-title">История оценок:</h2>
-                    <form style="display:{{ visedit }}" method="post" action="{{ url_for('profile') }}">
-                        <input class="btn profile-button" type="submit" value="ИЗМЕНИТЬ" name="edit" />
-                    </form>
-                    <form style="display:{{ visoptions }}" method="post" action="{{ url_for('profile') }}">
-                        <input class="btn profile-button back-btn" type="submit" value="ОТМЕНИТЬ" name="back" />
-                    </form>
-                </div>
+                <h2 class="profile-title">История оценок:</h2>
                 <table>
                     {% for rec in history %}
                     <tr>
-                        <td>{{ rec['film'] }}</td>
-                        <td style="display:{{ visedit }}">
-                            <p class="profile-rating">{{ rec['rating'] }}</p>
+                        <td><a href="https://www.imdb.com/title/{{ rec['film_id'] }}">{{ rec['film'] }}</a></td>
+                        <td>
+                            <p class="profile-rating">{{ rec['liked'] }}</p>
                         </td>
-                        <td style="display:{{ visoptions }}">
+                        <td>
                             <form method="post" action="{{ url_for('profile') }}">
-                                <input type="text" name="film-id" hidden=True value="{{ rec['id'] }}" />
-                                <input class="btn profile-button like-btn" type="submit" value="✔" name="like" />
-                            </form>
-                        </td>
-                        <td style="display:{{ visoptions }}">
-                            <form method="post" action="{{ url_for('profile') }}">
-                                <input type="text" name="film-id" hidden=True value="{{ rec['id'] }}" />
-                                <input class="btn profile-button dislike-btn" type="submit" value="✘" name="dislike" />
-                            </form>
-                        </td>
-                        <td style="display:{{ visoptions }}">
-                            <form method="post" action="{{ url_for('profile') }}">
-                                <input type="text" name="film-id" hidden=True value="{{ rec['id'] }}" />
-                                <input class="btn profile-button" type="submit" value="УДАЛИТЬ" name="delete-rate" />
+                                <input type="text" name="film-id" hidden=True value="{{ rec['film_id'] }}" />
+                                <input class="btn profile-button" type="submit" value="ИЗМЕНИТЬ" name="edit" />
                             </form>
                         </td>
                     </tr>
