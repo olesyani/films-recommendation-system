@@ -36,13 +36,9 @@ def recommendations():
     if 'loggedin' in session:
         account = frs.get_current_user(session['id'])
         try:
-            recs, vis = main.start(frs, account['vk_id'])
+            recs = main.start(frs, account['vk_id'])
         except TypeError:
-            recs, vis = main.start(frs, account[3])
-        if vis:
-            visibility = 'none'
-        else:
-            visibility = 'flex'
+            recs = main.start(frs, account[3])
         if request.method == 'POST':
             if request.form.get('like') == '✔':
                 fid = request.form['film-id']
@@ -59,7 +55,7 @@ def recommendations():
                 print(fid)
                 frs.add_film_to_list(account['vk_id'], fid)
                 return redirect(url_for('recommendations'))
-        return render_template('recommendations.html', username=session['username'], recs=recs, visibility=visibility)
+        return render_template('recommendations.html', username=session['username'], recs=recs)
     return redirect(url_for('login'))
 
 
@@ -81,9 +77,9 @@ def login():
                 session['username'] = account['username']
                 return redirect(url_for('home'))
             else:
-                flash('Неправильный логин или пароль')
+                flash('Неправильный логин и/или пароль')
         else:
-            flash('Неправильный логин или пароль')
+            flash('Пользователя с таким логином не существует')
 
     return render_template('login.html')
 

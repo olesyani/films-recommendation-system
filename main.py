@@ -11,6 +11,7 @@ from pymorphy2 import MorphAnalyzer
 from nltk.corpus import wordnet as wn
 from datetime import datetime
 from dotenv import load_dotenv
+from recommendation import recommendation_system
 
 
 load_dotenv()
@@ -114,7 +115,7 @@ def get_user_id(vk_session, screen_name):
         return None, None
 
 
-def recommendations_from_vk(tools, owner_id):
+def collecting_data_from_vk(tools, owner_id):
     s = time.time()
     print('VK recommendations in progress..')
     wall = tools.get_all('wall.get', POSTS_N, {'owner_id': owner_id})
@@ -187,6 +188,29 @@ def recommendations_from_vk(tools, owner_id):
     return movies_list
 
 
+def generate_vk_recommendations(frsdb, person_id, loop=False):
+    if TOKEN:
+        vk_session = vk_api.VkApi(token=TOKEN)
+        tools = vk_api.VkTools(vk_session)
+        if (frsdb.check_if_user_exists(person_id) is None) or (loop and get_permission(frsdb, person_id)):
+            movies = collecting_data_from_vk(tools, person_id)
+            frsdb.add_request_date(person_id, datetime.now())
+            s = time.time()
+            print('Information collected.')
+            insert_data(frsdb, movies[:30], person_id)
+            if movies[30:]:
+                frsdb.add_film_recommendations_list(person_id, movies[30:])
+                frsdb.commit()
+            print('CHECKPOINT INFO COLLECTED')
+            print(time.time() - s)
+            print('Data inserted.')
+            return True
+        return False
+    else:
+        print('Token is empty')
+        return False
+
+
 def add_250_top_movies_to_db(frsdb: db.FRSDatabase, genre=None):
     if genre:
         tmp = imdb.imdb_top_250_by_genre(genre)
@@ -241,53 +265,40 @@ def insert_data(frsdb: db.FRSDatabase, movies, person_id):
     frsdb.commit()
 
 
-def start(frsdb: db.FRSDatabase, person_id, loop=False):
-    if TOKEN != '':
-        vk_session = vk_api.VkApi(token=TOKEN)
-        tools = vk_api.VkTools(vk_session)
+def start(frsdb: db.FRSDatabase, person_id):
 
-        if (frsdb.check_if_user_exists(person_id) is None) or (loop and get_permission(frsdb, person_id)):
-            movies = recommendations_from_vk(tools, person_id)
-            frsdb.add_request_date(person_id, datetime.now())
-            s = time.time()
-            print('Information collected.')
-            insert_data(frsdb, movies[:30], person_id)
-            if movies[30:]:
-                frsdb.add_film_recommendations_list(person_id, movies[30:])
-                frsdb.commit()
-            print('CHECKPOINT INFO COLLECTED')
-            s = time.time() - s
-            print(s)
-            print('Data inserted.')
+    generate_vk_recommendations(frsdb, person_id)
 
-        films = []
-        recs = frsdb.get_undefined_user_recommendations(person_id)
-        recs_n = frsdb.get_number_of_loaded_recs(person_id)
+    films = []
+    recs = frsdb.get_undefined_user_recommendations(person_id)
+    recs_n = frsdb.get_number_of_loaded_recs(person_id)
 
-        if recs and recs_n[0] > 10:
-            for i in range(len(recs)):
-                films.append(frsdb.find_info(recs[i]['film']))
-            return films, 1
-        else:
-            films = frsdb.get_film_recommendations_list(person_id)
-            if films:
-                films = list(eval(films[0]))
-                insert_data(frsdb, films[:20], person_id)
-                if films[20:]:
-                    frsdb.add_film_recommendations_list(person_id, films[20:])
-                films = []
-                recs = frsdb.get_undefined_user_recommendations(person_id)
-                if recs:
-                    for i in range(len(recs)):
-                        films.append(frsdb.find_info(recs[i]['film']))
-                    return films, 1
-            for i in range(len(recs)):
-                films.append(frsdb.find_info(recs[i]['film']))
-            return films, 0
-
+    if recs and recs_n[0] > 10:
+        for i in range(len(recs)):
+            films.append(frsdb.find_info(recs[i]['film']))
+        return films
     else:
-        print('Token is empty')
-        return
+        films = frsdb.get_film_recommendations_list(person_id)
+        if films:
+            films = list(eval(films[0]))
+            insert_data(frsdb, films[:20], person_id)
+            if films[20:]:
+                frsdb.add_film_recommendations_list(person_id, films[20:])
+            films = []
+            recs = frsdb.get_undefined_user_recommendations(person_id)
+            if recs:
+                for i in range(len(recs)):
+                    films.append(frsdb.find_info(recs[i]['film']))
+                return films
+        resp = generate_vk_recommendations(frsdb, person_id, True)
+        if not resp:
+            titles = recommendation_system(frsdb, person_id)
+            for i in range(len(titles)):
+                frsdb.insert_recommendation(film_id=titles[i], user_id=person_id)
+            return films
+        for i in range(len(recs)):
+            films.append(frsdb.find_info(recs[i]['film']))
+        return films
 
 
 def start_from_main(frsdb: db.FRSDatabase, person_id, loop=False):
@@ -295,13 +306,13 @@ def start_from_main(frsdb: db.FRSDatabase, person_id, loop=False):
 
     person_id, screen_name = get_user_id(vk_session, person_id)
     print(person_id, screen_name)
-    start(frsdb, person_id, loop)
+    start(frsdb, person_id)
 
 
 if __name__ == '__main__':
     FRSDB = db.FRSDatabase(DATABASE, PASSWORD)
 
-    start_from_main(FRSDB, 'olesyanikolaevaa')
+    # start_from_main(FRSDB, 'olesyanikolaevaa')
     # print('Database connected.')
     # for j in ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 'documentary', 'drama', 'family',
     #           'fantasy', 'film_noir', 'game_show', 'history', 'horror', 'music', 'musical', 'mystery', 'news',

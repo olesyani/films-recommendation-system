@@ -105,6 +105,17 @@ class FRSDatabase:
         except TypeError:
             pass
 
+    def add_keywords(self, film_id, keywords):
+        upd = """UPDATE filmsinfo SET keywords = %s WHERE film_id = %s;"""
+        try:
+            self.cur.execute(upd, (keywords, film_id))
+            self.conn.commit()
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+
     def get_last_request_date(self, user_id):
         search = """SELECT last_request FROM users WHERE vk_id = %s"""
         try:
@@ -263,6 +274,22 @@ class FRSDatabase:
         except TypeError:
             pass
         return None
+
+    def get_films_with_no_keywords(self):
+        search = """SELECT film_id FROM filmsinfo WHERE keywords IS NULL"""
+        result = []
+        try:
+            self.cur.execute(search, )
+            info = self.cur.fetchone()
+            while info is not None:
+                result.append(info['film_id'])
+                info = self.cur.fetchone()
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+        return result
 
     def find_info(self, film_id):
         search = """SELECT * FROM filmsInfo WHERE film_id = %s"""
