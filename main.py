@@ -115,6 +115,12 @@ def get_user_id(vk_session, screen_name):
         return None, None
 
 
+def calculate_precision(frsdb: db.FRSDatabase):
+    liked = frsdb.get_metrics(True)
+    not_liked = frsdb.get_metrics(False)
+    return liked / (liked + not_liked)
+
+
 def collecting_data_from_vk(tools, owner_id):
     s = time.time()
     print('VK recommendations in progress..')
@@ -211,9 +217,11 @@ def generate_vk_recommendations(frsdb, person_id, loop=False):
         return False
 
 
-def add_250_top_movies_to_db(frsdb: db.FRSDatabase, genre=None):
+def add_250_top_movies_to_db(frsdb: db.FRSDatabase, genre=None, keyword=None):
     if genre:
         tmp = imdb.imdb_top_250_by_genre(genre)
+    elif keyword:
+        tmp = imdb.imdb_req(keyword)
     else:
         tmp = imdb.imdb_top_250_movies()
     for i in range(len(tmp)):
@@ -312,6 +320,8 @@ def start_from_main(frsdb: db.FRSDatabase, person_id, loop=False):
 if __name__ == '__main__':
     FRSDB = db.FRSDatabase(DATABASE, PASSWORD)
 
+    print(calculate_precision(FRSDB))
+
     # start_from_main(FRSDB, 'olesyanikolaevaa')
     # print('Database connected.')
     # for j in ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 'documentary', 'drama', 'family',
@@ -319,4 +329,10 @@ if __name__ == '__main__':
     #           'reality_tv', 'romance', 'sci_fi', 'sport', 'talk_show', 'thriller', 'war', 'western']:
     #     print(j)
     #     add_250_top_movies_to_db(FRSDB, j)
+
+    # for j in ['love', 'school', 'inspiration', 'sport', 'work', 'fashion', 'dreamer', 'goal', 'depression',
+    #           'teen', 'office', 'treasure', 'murder', 'creatures', 'marvel', 'comics', 'war', 'help', 'destiny']:
+    #     print(j)
+    #     add_250_top_movies_to_db(FRSDB, keyword=j)
+
     FRSDB.close()

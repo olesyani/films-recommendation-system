@@ -169,6 +169,18 @@ class FRSDatabase:
             pass
         return result
 
+    def get_metrics(self, mark: bool):
+        search = """SELECT COUNT(id) FROM recommend WHERE liked = %s"""
+        try:
+            self.cur.execute(search, (mark,))
+            return self.cur.fetchone()[0]
+        except psycopg2.DatabaseError as error:
+            print(error)
+            self.reconnect()
+        except TypeError:
+            pass
+        return None
+
     def get_number_of_loaded_recs(self, user_id):
         search = """SELECT COUNT(*) FROM recommend WHERE user_id = %s AND liked IS NULL"""
         try:
